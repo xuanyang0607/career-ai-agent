@@ -1,0 +1,8 @@
+spacy>=3.7.0
+requests>=2.31.0
+google-generativeai>=0.3.0
+python-dotenv>=1.0.0
+flask>=2.3.0
+flask-cors>=4.0.0
+python-jobspy>=1.1.79
+werkzeug>=2.3.0
