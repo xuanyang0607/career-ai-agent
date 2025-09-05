@@ -110,6 +110,30 @@ st.markdown("""
 if 'google_ai_configured' not in st.session_state:
     st.session_state.google_ai_configured = False
 
+# Initialize chat session state
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 0
+
+if 'user_profile_complete' not in st.session_state:
+    st.session_state.user_profile_complete = False
+
+if 'career_insights' not in st.session_state:
+    st.session_state.career_insights = {}
+
+if 'market_intelligence' not in st.session_state:
+    st.session_state.market_intelligence = {}
+
+if 'career_tracker' not in st.session_state:
+    st.session_state.career_tracker = {
+        'skills_progress': {},
+        'job_applications': [],
+        'learning_goals': [],
+        'achievements': []
+    }
+
 # Helper functions for UI components
 def display_progress_status():
     """Display progress status in sidebar"""
@@ -191,6 +215,206 @@ def create_skills_chart(skills_data):
     )
     
     return fig
+
+# Conversational Career Discovery Functions
+def get_career_discovery_questions():
+    """Get personalized career discovery questions"""
+    questions = [
+        {
+            "step": 1,
+            "question": "Hi! I'm your Career AI Assistant. I'm here to help you discover your true potential and find the perfect career path. Let's start with understanding your current situation. How are you feeling about your career right now?",
+            "type": "text",
+            "options": ["Excited and motivated", "Bored and looking for change", "Stressed and uncertain", "Lost and need direction", "Confident but want growth"]
+        },
+        {
+            "step": 2,
+            "question": "What's your biggest career concern or challenge right now?",
+            "type": "text",
+            "options": ["Not sure what I'm good at", "Don't know my market value", "Worried about AI replacing my job", "Want to switch industries", "Need to upskill but don't know where to start"]
+        },
+        {
+            "step": 3,
+            "question": "When you think about your ideal work environment, what matters most to you?",
+            "type": "multiselect",
+            "options": ["Work-life balance", "Making a positive impact", "High salary and benefits", "Creative freedom", "Job security", "Learning and growth", "Remote work flexibility", "Team collaboration"]
+        },
+        {
+            "step": 4,
+            "question": "What type of work energizes you most?",
+            "type": "text",
+            "options": ["Solving complex problems", "Helping others", "Creating something new", "Leading teams", "Analyzing data", "Building relationships", "Learning new things", "Making strategic decisions"]
+        },
+        {
+            "step": 5,
+            "question": "If you could wave a magic wand and have any career, what would it look like?",
+            "type": "text",
+            "placeholder": "Describe your dream career in 2-3 sentences..."
+        }
+    ]
+    return questions
+
+def generate_career_surprise_insights(user_responses, resume_data):
+    """Generate surprising career insights based on user responses"""
+    if not st.session_state.google_ai_configured:
+        return {'error': 'Google AI not configured'}
+    
+    try:
+        prompt = f"""
+        As a career AI expert, analyze this person's responses and resume to provide surprising, insightful career revelations.
+        
+        USER RESPONSES: {user_responses}
+        RESUME DATA: {resume_data}
+        
+        Provide surprising insights in JSON format:
+        {{
+            "surprising_strengths": [
+                {{
+                    "strength": "Specific strength",
+                    "evidence": "Why this is surprising based on their profile",
+                    "market_value": "How this strength is valued in the market"
+                }}
+            ],
+            "hidden_talents": [
+                {{
+                    "talent": "Hidden talent",
+                    "description": "Why this is a hidden gem",
+                    "career_applications": "How this can be leveraged"
+                }}
+            ],
+            "market_revelations": [
+                {{
+                    "insight": "Surprising market insight",
+                    "impact": "How this affects their career",
+                    "action": "What they should do about it"
+                }}
+            ],
+            "career_surprises": [
+                {{
+                    "surprise": "Unexpected career possibility",
+                    "reason": "Why this is surprising for them",
+                    "feasibility": "How achievable this is"
+                }}
+            ],
+            "value_proposition": {{
+                "unique_value": "What makes them uniquely valuable",
+                "employer_perception": "How employers likely see them",
+                "salary_potential": "Their earning potential"
+            }},
+            "next_surprises": "What other surprising insights await them"
+        }}
+        
+        Focus on insights that will genuinely surprise and excite them about their potential.
+        """
+        
+        response = st.session_state.google_model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        return {'error': f'Failed to generate insights: {str(e)}'}
+
+def generate_market_intelligence(industry, role):
+    """Generate comprehensive market intelligence"""
+    if not st.session_state.google_ai_configured:
+        return {'error': 'Google AI not configured'}
+    
+    try:
+        prompt = f"""
+        As a market intelligence expert, provide comprehensive market data for {industry} industry and {role} roles.
+        
+        Return JSON with:
+        {{
+            "startup_landscape": {{
+                "funding_trends": "Recent funding activity and trends",
+                "hot_startups": ["List of notable startups"],
+                "investment_focus": "What investors are focusing on"
+            }},
+            "job_market": {{
+                "hiring_trends": "Current hiring patterns",
+                "layoff_impact": "Recent layoffs and their impact",
+                "demand_forecast": "Future demand predictions",
+                "competition_level": "How competitive the market is"
+            }},
+            "macroeconomic_factors": {{
+                "regulations": "New laws and regulations affecting the industry",
+                "market_forces": "Economic forces shaping the industry",
+                "ai_impact": "How AI is changing the landscape",
+                "global_trends": "International market trends"
+            }},
+            "compensation_insights": {{
+                "salary_trends": "Current salary trends and changes",
+                "benefits_evolution": "How benefits are changing",
+                "equity_trends": "Stock options and equity trends",
+                "remote_work_impact": "How remote work affects compensation"
+            }},
+            "culture_alignment": {{
+                "company_cultures": "Types of company cultures in this space",
+                "work_life_balance": "WLB trends and expectations",
+                "value_alignment": "How to find culture fit",
+                "diversity_initiatives": "DEI trends and initiatives"
+            }},
+            "newsletter_content": {{
+                "key_headlines": ["Important industry news"],
+                "trending_topics": ["What's trending in the industry"],
+                "expert_insights": "Insights from industry experts"
+            }}
+        }}
+        """
+        
+        response = st.session_state.google_model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        return {'error': f'Failed to generate market intelligence: {str(e)}'}
+
+def generate_career_pathway_simulation(user_profile, target_role):
+    """Generate career pathway simulation with real profiles"""
+    if not st.session_state.google_ai_configured:
+        return {'error': 'Google AI not configured'}
+    
+    try:
+        prompt = f"""
+        Create a career pathway simulation showing what this person's career could look like.
+        
+        USER PROFILE: {user_profile}
+        TARGET ROLE: {target_role}
+        
+        Return JSON with:
+        {{
+            "career_trajectory": {{
+                "year_1": {{"title": "Role", "salary": "$X", "skills": ["skill1", "skill2"]}},
+                "year_3": {{"title": "Role", "salary": "$X", "skills": ["skill1", "skill2"]}},
+                "year_5": {{"title": "Role", "salary": "$X", "skills": ["skill1", "skill2"]}},
+                "year_10": {{"title": "Role", "salary": "$X", "skills": ["skill1", "skill2"]}}
+            }},
+            "similar_profiles": [
+                {{
+                    "name": "Anonymous Profile",
+                    "background": "Similar background description",
+                    "current_role": "Current role",
+                    "journey": "How they got there",
+                    "key_insights": "What made them successful"
+                }}
+            ],
+            "milestones": [
+                {{
+                    "milestone": "Specific achievement",
+                    "timeline": "When to achieve it",
+                    "importance": "Why it matters",
+                    "preparation": "How to prepare"
+                }}
+            ],
+            "risk_factors": [
+                {{
+                    "risk": "Potential career risk",
+                    "mitigation": "How to avoid or handle it",
+                    "probability": "How likely this is"
+                }}
+            ]
+        }}
+        """
+        
+        response = st.session_state.google_model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        return {'error': f'Failed to generate career pathway: {str(e)}'}
 
 # Initialize Google AI
 def init_google_ai():
@@ -567,17 +791,176 @@ def main():
                 st.metric("Experience", f"{resume_data.get('years_experience', 0)} years")
     
     # Main content with enhanced tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "🤖 Career Discovery Chat", 
         "📄 Resume Analysis", 
         "🎯 Career Insights", 
         "💼 Job Recommendations", 
         "📈 Market Intelligence",
         "🛠️ Resume Improvement",
-        "📚 Training & Projects"
+        "📚 Training & Projects",
+        "🏆 Career Tracker"
     ])
     
-    # Tab 1: Enhanced Resume Analysis
+    # Tab 1: Career Discovery Chat
     with tab1:
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.header("🤖 Career Discovery Chat")
+        st.write("Let's have a conversation to discover your true potential and surprise you with insights about your career!")
+        
+        # Chat interface
+        if not st.session_state.user_profile_complete:
+            questions = get_career_discovery_questions()
+            current_question = questions[st.session_state.current_step]
+            
+            st.markdown(f"""
+            <div class="info-card">
+                <strong>Question {st.session_state.current_step + 1} of {len(questions)}</strong><br>
+                {current_question['question']}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Question response interface
+            if current_question['type'] == 'text':
+                if current_question.get('options'):
+                    response = st.radio("Your answer:", current_question['options'], key=f"q{st.session_state.current_step}")
+                else:
+                    response = st.text_area(
+                        "Your answer:", 
+                        placeholder=current_question.get('placeholder', ''),
+                        key=f"q{st.session_state.current_step}"
+                    )
+            elif current_question['type'] == 'multiselect':
+                response = st.multiselect(
+                    "Select all that apply:", 
+                    current_question['options'],
+                    key=f"q{st.session_state.current_step}"
+                )
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                if st.button("Next Question", type="primary", use_container_width=True):
+                    if response:
+                        # Store response
+                        if 'user_responses' not in st.session_state:
+                            st.session_state.user_responses = []
+                        st.session_state.user_responses.append({
+                            'question': current_question['question'],
+                            'response': response
+                        })
+                        
+                        # Move to next question
+                        if st.session_state.current_step < len(questions) - 1:
+                            st.session_state.current_step += 1
+                            st.rerun()
+                        else:
+                            # All questions answered, generate insights
+                            st.session_state.user_profile_complete = True
+                            st.rerun()
+                    else:
+                        st.warning("Please provide an answer before continuing.")
+            
+            # Show progress
+            progress = (st.session_state.current_step + 1) / len(questions)
+            st.progress(progress)
+            st.caption(f"Progress: {st.session_state.current_step + 1}/{len(questions)} questions completed")
+        
+        else:
+            # Generate and display career insights
+            if 'career_surprise_insights' not in st.session_state:
+                with st.spinner("🤖 Analyzing your responses and generating surprising insights..."):
+                    insights = generate_career_surprise_insights(
+                        st.session_state.user_responses,
+                        st.session_state.get('resume_data', {})
+                    )
+                    st.session_state.career_surprise_insights = insights
+            
+            insights = st.session_state.career_surprise_insights
+            
+            if 'error' not in insights:
+                st.markdown("""
+                <div class="success-card">
+                    <h3>🎉 Your Career Discovery Results!</h3>
+                    <p>Here are some surprising insights about your career potential:</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Surprising Strengths
+                if 'surprising_strengths' in insights:
+                    st.subheader("💪 Your Surprising Strengths")
+                    for strength in insights['surprising_strengths']:
+                        with st.expander(f"✨ {strength.get('strength', 'Strength')}"):
+                            st.write(f"**Evidence:** {strength.get('evidence', 'No evidence provided')}")
+                            st.write(f"**Market Value:** {strength.get('market_value', 'No market value info')}")
+                
+                # Hidden Talents
+                if 'hidden_talents' in insights:
+                    st.subheader("🎯 Hidden Talents")
+                    for talent in insights['hidden_talents']:
+                        with st.expander(f"💎 {talent.get('talent', 'Talent')}"):
+                            st.write(f"**Description:** {talent.get('description', 'No description')}")
+                            st.write(f"**Career Applications:** {talent.get('career_applications', 'No applications info')}")
+                
+                # Market Revelations
+                if 'market_revelations' in insights:
+                    st.subheader("📊 Market Revelations")
+                    for revelation in insights['market_revelations']:
+                        with st.expander(f"🔍 {revelation.get('insight', 'Insight')}"):
+                            st.write(f"**Impact:** {revelation.get('impact', 'No impact info')}")
+                            st.write(f"**Action:** {revelation.get('action', 'No action info')}")
+                
+                # Career Surprises
+                if 'career_surprises' in insights:
+                    st.subheader("🚀 Career Surprises")
+                    for surprise in insights['career_surprises']:
+                        with st.expander(f"🎪 {surprise.get('surprise', 'Surprise')}"):
+                            st.write(f"**Why Surprising:** {surprise.get('reason', 'No reason provided')}")
+                            st.write(f"**Feasibility:** {surprise.get('feasibility', 'No feasibility info')}")
+                
+                # Value Proposition
+                if 'value_proposition' in insights:
+                    st.subheader("💰 Your Value Proposition")
+                    vp = insights['value_proposition']
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Unique Value", vp.get('unique_value', 'Not specified'))
+                    with col2:
+                        st.metric("Employer Perception", vp.get('employer_perception', 'Not specified'))
+                    with col3:
+                        st.metric("Salary Potential", vp.get('salary_potential', 'Not specified'))
+                
+                # Next Steps
+                st.markdown("---")
+                st.subheader("🎯 Ready for More Surprises?")
+                st.markdown("""
+                <div class="info-card">
+                    <strong>Your journey has just begun!</strong><br>
+                    Now that you've discovered your surprising potential, explore:
+                    <ul>
+                        <li>📄 Detailed resume analysis</li>
+                        <li>💼 Personalized job recommendations</li>
+                        <li>📈 Market intelligence for your field</li>
+                        <li>📚 Custom training and projects</li>
+                        <li>🏆 Track your career progress</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Reset button
+                if st.button("🔄 Start Over", type="secondary"):
+                    st.session_state.user_profile_complete = False
+                    st.session_state.current_step = 0
+                    st.session_state.user_responses = []
+                    st.session_state.career_surprise_insights = {}
+                    st.rerun()
+            else:
+                st.error(f"Error generating insights: {insights['error']}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Tab 2: Enhanced Resume Analysis
+    with tab2:
         st.markdown('<div class="tab-content">', unsafe_allow_html=True)
         
         # Header with description
@@ -1078,6 +1461,163 @@ def main():
                 st.warning("⚠️ Complete Resume Analysis first")
             if 'job_recommendations' not in st.session_state:
                 st.warning("⚠️ Generate Job Recommendations first")
+    
+    # Tab 8: Career Tracker
+    with tab8:
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+        
+        st.header("🏆 Career Progress Tracker")
+        st.write("Track your career journey, monitor your progress, and celebrate your achievements!")
+        
+        # Career Tracker Dashboard
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Skills Learned", len(st.session_state.career_tracker.get('skills_progress', {})))
+        with col2:
+            st.metric("Jobs Applied", len(st.session_state.career_tracker.get('job_applications', [])))
+        with col3:
+            st.metric("Learning Goals", len(st.session_state.career_tracker.get('learning_goals', [])))
+        with col4:
+            st.metric("Achievements", len(st.session_state.career_tracker.get('achievements', [])))
+        
+        # Skills Progress
+        st.subheader("📈 Skills Progress")
+        if st.session_state.career_tracker.get('skills_progress'):
+            for skill, progress in st.session_state.career_tracker['skills_progress'].items():
+                st.write(f"**{skill}:** {progress}%")
+                st.progress(progress / 100)
+        else:
+            st.info("Complete some training to track your skills progress!")
+        
+        # Job Applications Tracker
+        st.subheader("💼 Job Applications")
+        if st.button("➕ Add Job Application", type="primary"):
+            with st.form("add_job_application"):
+                company = st.text_input("Company")
+                position = st.text_input("Position")
+                status = st.selectbox("Status", ["Applied", "Interview", "Rejected", "Offer"])
+                date = st.date_input("Date")
+                
+                if st.form_submit_button("Add Application"):
+                    if company and position:
+                        st.session_state.career_tracker['job_applications'].append({
+                            'company': company,
+                            'position': position,
+                            'status': status,
+                            'date': str(date)
+                        })
+                        st.success("Job application added!")
+                        st.rerun()
+        
+        # Display job applications
+        if st.session_state.career_tracker.get('job_applications'):
+            for i, app in enumerate(st.session_state.career_tracker['job_applications']):
+                with st.expander(f"{app['company']} - {app['position']} ({app['status']})"):
+                    st.write(f"**Date:** {app['date']}")
+                    st.write(f"**Status:** {app['status']}")
+        
+        # Learning Goals
+        st.subheader("🎯 Learning Goals")
+        if st.button("➕ Add Learning Goal", type="secondary"):
+            with st.form("add_learning_goal"):
+                goal = st.text_input("Learning Goal")
+                deadline = st.date_input("Deadline")
+                priority = st.selectbox("Priority", ["High", "Medium", "Low"])
+                
+                if st.form_submit_button("Add Goal"):
+                    if goal:
+                        st.session_state.career_tracker['learning_goals'].append({
+                            'goal': goal,
+                            'deadline': str(deadline),
+                            'priority': priority,
+                            'completed': False
+                        })
+                        st.success("Learning goal added!")
+                        st.rerun()
+        
+        # Display learning goals
+        if st.session_state.career_tracker.get('learning_goals'):
+            for i, goal in enumerate(st.session_state.career_tracker['learning_goals']):
+                with st.expander(f"{goal['goal']} - {goal['priority']} Priority"):
+                    st.write(f"**Deadline:** {goal['deadline']}")
+                    st.write(f"**Priority:** {goal['priority']}")
+                    if st.button(f"Mark Complete", key=f"complete_{i}"):
+                        st.session_state.career_tracker['learning_goals'][i]['completed'] = True
+                        st.success("Goal completed! 🎉")
+                        st.rerun()
+        
+        # Achievements
+        st.subheader("🏅 Achievements")
+        if st.button("➕ Add Achievement", type="secondary"):
+            with st.form("add_achievement"):
+                achievement = st.text_input("Achievement")
+                date = st.date_input("Date Achieved")
+                category = st.selectbox("Category", ["Skill", "Job", "Project", "Certification", "Other"])
+                
+                if st.form_submit_button("Add Achievement"):
+                    if achievement:
+                        st.session_state.career_tracker['achievements'].append({
+                            'achievement': achievement,
+                            'date': str(date),
+                            'category': category
+                        })
+                        st.success("Achievement added!")
+                        st.rerun()
+        
+        # Display achievements
+        if st.session_state.career_tracker.get('achievements'):
+            for achievement in st.session_state.career_tracker['achievements']:
+                st.write(f"🏆 **{achievement['achievement']}** ({achievement['category']}) - {achievement['date']}")
+        
+        # Career Pathway Simulation
+        if st.session_state.get('resume_data') and st.session_state.get('career_analysis'):
+            st.subheader("🗺️ Career Pathway Simulation")
+            
+            if st.button("🎯 Generate Career Pathway", type="primary"):
+                with st.spinner("Generating your career pathway simulation..."):
+                    # Get primary industry and role from analysis
+                    industry = "Technology"  # Default, could be extracted from analysis
+                    role = "Software Engineer"  # Default, could be extracted from analysis
+                    
+                    pathway = generate_career_pathway_simulation(
+                        st.session_state.resume_data,
+                        role
+                    )
+                    
+                    if 'error' not in pathway:
+                        st.session_state.career_pathway = pathway
+                        st.success("Career pathway generated!")
+                    else:
+                        st.error(f"Error: {pathway['error']}")
+            
+            if 'career_pathway' in st.session_state:
+                pathway = st.session_state.career_pathway
+                
+                # Career Trajectory
+                if 'career_trajectory' in pathway:
+                    st.subheader("📈 Your Career Trajectory")
+                    trajectory = pathway['career_trajectory']
+                    
+                    for year, data in trajectory.items():
+                        with st.expander(f"{year.replace('_', ' ').title()}: {data.get('title', 'Role')}"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write(f"**Salary:** {data.get('salary', 'Not specified')}")
+                            with col2:
+                                st.write(f"**Skills:** {', '.join(data.get('skills', []))}")
+                
+                # Similar Profiles
+                if 'similar_profiles' in pathway:
+                    st.subheader("👥 Similar Career Paths")
+                    for profile in pathway['similar_profiles']:
+                        with st.expander(f"Profile: {profile.get('name', 'Anonymous')}"):
+                            st.write(f"**Background:** {profile.get('background', 'No background')}")
+                            st.write(f"**Current Role:** {profile.get('current_role', 'No current role')}")
+                            st.write(f"**Journey:** {profile.get('journey', 'No journey info')}")
+                            st.write(f"**Key Insights:** {profile.get('key_insights', 'No insights')}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
