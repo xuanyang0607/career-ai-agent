@@ -1639,7 +1639,7 @@ def main():
                     
                     if 'error' in jobs:
                         st.error(jobs['error'])
-            else:
+                    else:
                         st.session_state.job_recommendations = jobs
                         st.success("✅ Job recommendations ready!")
             
