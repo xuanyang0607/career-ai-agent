@@ -219,38 +219,80 @@ def create_skills_chart(skills_data):
 # Conversational Career Discovery Functions
 def get_career_discovery_questions():
     """Get personalized career discovery questions"""
-    questions = [
-        {
-            "step": 1,
-            "question": "Hi! I'm your Career AI Assistant. I'm here to help you discover your true potential and find the perfect career path. Let's start with understanding your current situation. How are you feeling about your career right now?",
-            "type": "text",
-            "options": ["Excited and motivated", "Bored and looking for change", "Stressed and uncertain", "Lost and need direction", "Confident but want growth"]
-        },
-        {
-            "step": 2,
-            "question": "What's your biggest career concern or challenge right now?",
-            "type": "text",
-            "options": ["Not sure what I'm good at", "Don't know my market value", "Worried about AI replacing my job", "Want to switch industries", "Need to upskill but don't know where to start"]
-        },
-        {
-            "step": 3,
-            "question": "When you think about your ideal work environment, what matters most to you?",
-            "type": "multiselect",
-            "options": ["Work-life balance", "Making a positive impact", "High salary and benefits", "Creative freedom", "Job security", "Learning and growth", "Remote work flexibility", "Team collaboration"]
-        },
-        {
-            "step": 4,
-            "question": "What type of work energizes you most?",
-            "type": "text",
-            "options": ["Solving complex problems", "Helping others", "Creating something new", "Leading teams", "Analyzing data", "Building relationships", "Learning new things", "Making strategic decisions"]
-        },
-        {
-            "step": 5,
-            "question": "If you could wave a magic wand and have any career, what would it look like?",
-            "type": "text",
-            "placeholder": "Describe your dream career in 2-3 sentences..."
-        }
-    ]
+    # Check if resume data is available
+    has_resume = st.session_state.get('resume_data', {})
+    resume_skills = has_resume.get('skills', [])
+    resume_experience = has_resume.get('years_experience', 0)
+    
+    if has_resume and resume_skills:
+        # More contextual questions when resume is available
+        questions = [
+            {
+                "step": 1,
+                "question": f"Hi! I can see you have {resume_experience} years of experience with skills in {', '.join(resume_skills[:3])}{'...' if len(resume_skills) > 3 else ''}. How are you feeling about your career right now?",
+                "type": "text",
+                "options": ["Excited and motivated", "Bored and looking for change", "Stressed and uncertain", "Lost and need direction", "Confident but want growth"]
+            },
+            {
+                "step": 2,
+                "question": "Based on your background, what's your biggest career concern or challenge right now?",
+                "type": "text",
+                "options": ["Not sure what I'm good at", "Don't know my market value", "Worried about AI replacing my job", "Want to switch industries", "Need to upskill but don't know where to start", "Want to advance in my current field"]
+            },
+            {
+                "step": 3,
+                "question": "When you think about your ideal work environment, what matters most to you?",
+                "type": "multiselect",
+                "options": ["Work-life balance", "Making a positive impact", "High salary and benefits", "Creative freedom", "Job security", "Learning and growth", "Remote work flexibility", "Team collaboration"]
+            },
+            {
+                "step": 4,
+                "question": "What type of work energizes you most?",
+                "type": "text",
+                "options": ["Solving complex problems", "Helping others", "Creating something new", "Leading teams", "Analyzing data", "Building relationships", "Learning new things", "Making strategic decisions"]
+            },
+            {
+                "step": 5,
+                "question": "If you could wave a magic wand and have any career, what would it look like?",
+                "type": "text",
+                "placeholder": "Describe your dream career in 2-3 sentences..."
+            }
+        ]
+    else:
+        # Default questions when no resume is available
+        questions = [
+            {
+                "step": 1,
+                "question": "Hi! I'm your Career AI Assistant. I'm here to help you discover your true potential and find the perfect career path. Let's start with understanding your current situation. How are you feeling about your career right now?",
+                "type": "text",
+                "options": ["Excited and motivated", "Bored and looking for change", "Stressed and uncertain", "Lost and need direction", "Confident but want growth"]
+            },
+            {
+                "step": 2,
+                "question": "What's your biggest career concern or challenge right now?",
+                "type": "text",
+                "options": ["Not sure what I'm good at", "Don't know my market value", "Worried about AI replacing my job", "Want to switch industries", "Need to upskill but don't know where to start"]
+            },
+            {
+                "step": 3,
+                "question": "When you think about your ideal work environment, what matters most to you?",
+                "type": "multiselect",
+                "options": ["Work-life balance", "Making a positive impact", "High salary and benefits", "Creative freedom", "Job security", "Learning and growth", "Remote work flexibility", "Team collaboration"]
+            },
+            {
+                "step": 4,
+                "question": "What type of work energizes you most?",
+                "type": "text",
+                "options": ["Solving complex problems", "Helping others", "Creating something new", "Leading teams", "Analyzing data", "Building relationships", "Learning new things", "Making strategic decisions"]
+            },
+            {
+                "step": 5,
+                "question": "If you could wave a magic wand and have any career, what would it look like?",
+                "type": "text",
+                "placeholder": "Describe your dream career in 2-3 sentences..."
+            }
+        ]
+    
     return questions
 
 def generate_career_surprise_insights(user_responses, resume_data):
@@ -585,10 +627,56 @@ def extract_resume_data(text):
         if pattern in text_lower:
             job_titles.append(pattern.title())
     
-    # Extract years of experience (simple pattern)
+    # Extract years of experience (improved pattern matching)
     import re
-    years_match = re.search(r'(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?experience', text_lower)
-    years_experience = int(years_match.group(1)) if years_match else 0
+    years_experience = 0
+    
+    # Multiple patterns to catch different formats
+    patterns = [
+        r'(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?experience',
+        r'(\d+)\+?\s*(?:years?|yrs?)\s*(?:in|of)',
+        r'experience[:\s]*(\d+)\s*(?:years?|yrs?)',
+        r'(\d+)\s*(?:years?|yrs?)\s*(?:professional|work|industry)',
+        r'(\d+)\s*(?:years?|yrs?)\s*(?:total|combined)',
+        r'(\d+)\s*(?:years?|yrs?)\s*(?:proven|demonstrated)'
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            years_experience = int(match.group(1))
+            break
+    
+    # If no explicit years found, try to calculate from job dates
+    if years_experience == 0:
+        # Look for date patterns like "2020-2023", "Jan 2020 - Dec 2023", etc.
+        date_patterns = [
+            r'(\d{4})\s*[-–]\s*(\d{4})',  # 2020-2023
+            r'(\d{4})\s*[-–]\s*present',  # 2020-present
+            r'(\d{4})\s*[-–]\s*current',  # 2020-current
+            r'(\d{4})\s*[-–]\s*now',      # 2020-now
+        ]
+        
+        current_year = datetime.now().year
+        job_years = []
+        
+        for pattern in date_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                if len(match) == 2:
+                    start_year, end_year = match
+                    if end_year.lower() in ['present', 'current', 'now']:
+                        end_year = current_year
+                    try:
+                        start_year = int(start_year)
+                        end_year = int(end_year)
+                        if start_year <= end_year <= current_year:
+                            job_years.append(end_year - start_year)
+                    except ValueError:
+                        continue
+        
+        if job_years:
+            years_experience = max(job_years)  # Take the longest job duration
     
     # Extract education level
     education_level = "Unknown"
@@ -977,6 +1065,56 @@ def main():
         st.header("🤖 Career Discovery Chat")
         st.write("Let's have a conversation to discover your true potential and surprise you with insights about your career!")
         
+        # Resume upload section for better insights
+        st.subheader("📄 Upload Your Resume (Optional but Recommended)")
+        st.write("Upload your resume for more accurate and personalized insights!")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            resume_text_chat = st.text_area(
+                "Paste your resume text here", 
+                height=200,
+                placeholder="Paste your resume text for better career insights...",
+                key="resume_chat_input"
+            )
+        
+        with col2:
+            uploaded_file_chat = st.file_uploader(
+                "Or upload a file", 
+                type=['txt', 'pdf', 'docx'],
+                help="Upload your resume file",
+                key="resume_chat_file"
+            )
+            
+            if uploaded_file_chat:
+                st.info(f"📁 File uploaded: {uploaded_file_chat.name}")
+        
+        # Process resume if provided
+        if resume_text_chat:
+            if st.button("🔍 Analyze Resume", key="analyze_resume_chat"):
+                with st.spinner("Analyzing your resume..."):
+                    resume_data = extract_resume_data(resume_text_chat)
+                    st.session_state.resume_data = resume_data
+                    display_success_message("Resume analyzed! This will enhance your career insights.")
+                    st.rerun()  # Refresh to show updated questions
+        
+        # Show resume analysis summary if available
+        if st.session_state.get('resume_data'):
+            resume_data = st.session_state.resume_data
+            st.markdown("""
+            <div class="success-card">
+                <strong>✅ Resume Analyzed!</strong><br>
+                Skills: {skills} | Experience: {exp} years | Education: {edu}
+            </div>
+            """.format(
+                skills=len(resume_data.get('skills', [])),
+                exp=resume_data.get('years_experience', 0),
+                edu=resume_data.get('education_level', 'Unknown')
+            ), unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
         # Chat interface
         if not st.session_state.user_profile_complete:
             questions = get_career_discovery_questions()
@@ -1136,6 +1274,8 @@ def main():
         with col1:
             st.header("📄 Resume Analysis & Preferences")
             st.write("Upload your resume and set your career preferences to get started with personalized insights.")
+            if st.session_state.get('resume_data'):
+                st.info("💡 **Tip:** Your resume data is automatically shared across all tabs for better insights!")
         with col2:
             if st.session_state.get('resume_data'):
                 display_success_message("Resume Analyzed!")
