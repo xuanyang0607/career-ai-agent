@@ -1623,7 +1623,7 @@ def main():
                         for role in analysis['role_recommendations'].get('transition_roles', []):
                             st.write(f"• {role}")
             else:
-            st.info("👆 Please complete the Resume Analysis first to get career insights")
+                st.info("👆 Please complete the Resume Analysis first to get career insights")
     
     # Tab 3: Job Recommendations
     with tab3:
