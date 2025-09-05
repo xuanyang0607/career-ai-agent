@@ -1268,7 +1268,7 @@ def main():
                     if resume_data.get('job_titles'):
                         for title in resume_data.get('job_titles', []):
                             st.write(f"• {title}")
-            else:
+                    else:
                         st.write("No specific job titles detected")
                     
                     if resume_data.get('years_experience', 0) > 0:
