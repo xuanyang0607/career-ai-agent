@@ -103,6 +103,58 @@ st.markdown("""
     .sidebar .sidebar-content {
         background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
     }
+    
+    /* Enhanced Tab Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #f8f9fa;
+        padding: 8px;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 60px;
+        padding: 0 24px;
+        background-color: white;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        font-size: 16px;
+        font-weight: 600;
+        color: #495057;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #f8f9fa;
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stTabs [aria-selected="true"]:hover {
+        background: linear-gradient(45deg, #5a6fd8, #6a4190);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Tab content spacing */
+    .stTabs [data-baseweb="tab-panel"] {
+        padding-top: 1rem;
+    }
+    
+    /* Progress bar styling */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -649,17 +701,13 @@ def extract_resume_data(text):
     
     # If no explicit years found, try to calculate from job dates
     if years_experience == 0:
-        # Look for date patterns like "2020-2023", "Jan 2020 - Dec 2023", etc.
+        # Look for date patterns like "03/2023 - Present", "2020-2023", "Jan 2020 - Dec 2023", etc.
         date_patterns = [
-            r'(\d{4})\s*[-–]\s*(\d{4})',  # 2020-2023
-            r'(\d{4})\s*[-–]\s*present',  # 2020-present
-            r'(\d{4})\s*[-–]\s*current',  # 2020-current
-            r'(\d{4})\s*[-–]\s*now',      # 2020-now
-            r'(\d{4})\s*[-–]\s*ongoing',  # 2020-ongoing
-            r'(\d{4})\s*to\s*present',    # 2020 to present
-            r'(\d{4})\s*to\s*current',    # 2020 to current
-            r'(\d{4})\s*to\s*now',        # 2020 to now
-            r'(\d{4})\s*to\s*ongoing',    # 2020 to ongoing
+            r'(\d{1,2}/\d{4})\s*[-–—]\s*(\d{1,2}/\d{4})',  # 03/2023 - 02/2023
+            r'(\d{1,2}/\d{4})\s*[-–—]\s*(present|current|now|ongoing)',  # 03/2023 - present
+            r'(\d{4})\s*[-–—]\s*(\d{4})',  # 2020-2023
+            r'(\d{4})\s*[-–—]\s*(present|current|now|ongoing)',  # 2020-present
+            r'(\d{4})\s*to\s*(present|current|now|ongoing)',    # 2020 to present
         ]
         
         current_year = datetime.now().year
@@ -670,17 +718,39 @@ def extract_resume_data(text):
             matches = re.findall(pattern, text_lower)
             for match in matches:
                 if len(match) == 2:
-                    start_year, end_year = match
-                    if end_year.lower() in ['present', 'current', 'now', 'ongoing']:
+                    start_part, end_part = match
+                    
+                    # Handle start year - check for MM/YYYY format first
+                    if '/' in start_part:
+                        try:
+                            month, year = start_part.split('/')
+                            start_year = int(year)
+                        except:
+                            continue
+                    else:
+                        try:
+                            start_year = int(start_part)
+                        except ValueError:
+                            continue
+                    
+                    # Handle end year - check for MM/YYYY format first
+                    if '/' in end_part:
+                        try:
+                            month, year = end_part.split('/')
+                            end_year = int(year)
+                        except:
+                            continue
+                    elif end_part.lower() in ['present', 'current', 'now', 'ongoing']:
                         end_year = current_year
-                    try:
-                        start_year = int(start_year)
-                        end_year = int(end_year)
-                        if start_year <= end_year <= current_year and start_year >= 1950:  # Reasonable year range
-                            all_start_years.append(start_year)
-                            all_end_years.append(end_year)
-                    except ValueError:
-                        continue
+                    else:
+                        try:
+                            end_year = int(end_part)
+                        except ValueError:
+                            continue
+                    
+                    if start_year <= end_year <= current_year and start_year >= 1950:  # Reasonable year range
+                        all_start_years.append(start_year)
+                        all_end_years.append(end_year)
         
         # Also look for single years (start dates without end dates)
         single_year_patterns = [
