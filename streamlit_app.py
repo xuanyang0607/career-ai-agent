@@ -30,7 +30,7 @@ def init_google_ai():
             return False
         
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         st.session_state.google_model = model
         st.session_state.google_ai_configured = True
         st.success("✅ Google AI configured")
