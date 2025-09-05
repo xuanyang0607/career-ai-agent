@@ -1131,7 +1131,7 @@ def main():
         else:
             display_warning_message("Google AI Not Configured")
             if st.button("🔑 Initialize Google AI", type="primary"):
-            init_google_ai()
+                init_google_ai()
         
         st.markdown("---")
         
