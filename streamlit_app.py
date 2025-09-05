@@ -259,13 +259,28 @@ def generate_career_surprise_insights(user_responses, resume_data):
         return {'error': 'Google AI not configured'}
     
     try:
+        # Format user responses for better AI understanding
+        formatted_responses = []
+        for response in user_responses:
+            formatted_responses.append(f"Q: {response['question']}\nA: {response['response']}")
+        
+        responses_text = "\n\n".join(formatted_responses)
+        
         prompt = f"""
         As a career AI expert, analyze this person's responses and resume to provide surprising, insightful career revelations.
         
-        USER RESPONSES: {user_responses}
-        RESUME DATA: {resume_data}
+        USER RESPONSES:
+        {responses_text}
         
-        Provide surprising insights in JSON format:
+        RESUME DATA:
+        Skills: {resume_data.get('skills', [])}
+        Experience: {resume_data.get('years_experience', 0)} years
+        Education: {resume_data.get('education_level', 'Unknown')}
+        Industries: {resume_data.get('industries', [])}
+        
+        IMPORTANT: You must respond with ONLY valid JSON. No additional text, explanations, or formatting outside the JSON structure.
+        
+        Provide surprising insights in this exact JSON format:
         {{
             "surprising_strengths": [
                 {{
@@ -303,12 +318,70 @@ def generate_career_surprise_insights(user_responses, resume_data):
             "next_surprises": "What other surprising insights await them"
         }}
         
-        Focus on insights that will genuinely surprise and excite them about their potential.
+        Focus on insights that will genuinely surprise and excite them about their potential. Make sure to return ONLY the JSON object.
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            # If JSON parsing fails, return a fallback response
+            st.error(f"JSON parsing error: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            
+            # Return a structured fallback
+            return {
+                "surprising_strengths": [
+                    {
+                        "strength": "Adaptability and Growth Mindset",
+                        "evidence": "Your responses show openness to change and learning",
+                        "market_value": "Highly valued in today's rapidly changing job market"
+                    }
+                ],
+                "hidden_talents": [
+                    {
+                        "talent": "Problem-Solving Ability",
+                        "description": "Your career concerns show analytical thinking",
+                        "career_applications": "Can be leveraged in consulting, product management, or operations roles"
+                    }
+                ],
+                "market_revelations": [
+                    {
+                        "insight": "Career transitions are more common than ever",
+                        "impact": "Your career pivot is actually a strategic advantage",
+                        "action": "Focus on transferable skills and industry knowledge"
+                    }
+                ],
+                "career_surprises": [
+                    {
+                        "surprise": "Your background may be perfect for emerging AI roles",
+                        "reason": "Many AI roles value diverse backgrounds and fresh perspectives",
+                        "feasibility": "Highly achievable with targeted upskilling"
+                    }
+                ],
+                "value_proposition": {
+                    "unique_value": "Fresh perspective with growth potential",
+                    "employer_perception": "Motivated candidate ready for new challenges",
+                    "salary_potential": "Strong growth potential with right role alignment"
+                },
+                "next_surprises": "Your career journey is just beginning - many exciting opportunities await!"
+            }
+        
     except Exception as e:
+        st.error(f"Error in generate_career_surprise_insights: {str(e)}")
         return {'error': f'Failed to generate insights: {str(e)}'}
 
 def generate_market_intelligence(industry, role):
@@ -360,7 +433,26 @@ def generate_market_intelligence(industry, role):
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            st.error(f"JSON parsing error in market intelligence: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            return {'error': f'Failed to parse market intelligence response: {str(json_error)}'}
+        
     except Exception as e:
         return {'error': f'Failed to generate market intelligence: {str(e)}'}
 
@@ -412,7 +504,26 @@ def generate_career_pathway_simulation(user_profile, target_role):
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            st.error(f"JSON parsing error in career pathway: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            return {'error': f'Failed to parse career pathway response: {str(json_error)}'}
+        
     except Exception as e:
         return {'error': f'Failed to generate career pathway: {str(e)}'}
 
@@ -574,7 +685,26 @@ def generate_career_analysis(resume_data, manual_preferences):
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            st.error(f"JSON parsing error in career analysis: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            return {'error': f'Failed to parse career analysis response: {str(json_error)}'}
+        
     except Exception as e:
         return {'error': f'Failed to generate analysis: {str(e)}'}
 
@@ -614,7 +744,26 @@ def generate_job_recommendations(resume_data, manual_preferences):
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            st.error(f"JSON parsing error in job recommendations: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            return {'error': f'Failed to parse job recommendations response: {str(json_error)}'}
+        
     except Exception as e:
         return {'error': f'Failed to generate job recommendations: {str(e)}'}
 
@@ -719,7 +868,26 @@ def generate_training_recommendations(resume_data, job_recommendations):
         """
         
         response = st.session_state.google_model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        
+        # Remove any markdown formatting if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]
+        
+        response_text = response_text.strip()
+        
+        # Try to parse the JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_error:
+            st.error(f"JSON parsing error in training recommendations: {json_error}")
+            st.error(f"Raw response: {response_text}")
+            return {'error': f'Failed to parse training recommendations response: {str(json_error)}'}
+        
     except Exception as e:
         return {'error': f'Failed to generate training recommendations: {str(e)}'}
 
