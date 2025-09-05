@@ -23,9 +23,10 @@ if 'google_ai_configured' not in st.session_state:
 # Initialize Google AI
 def init_google_ai():
     try:
-        api_key = os.environ.get('GOOGLE_API_KEY')
+        # Try to get API key from Streamlit secrets first, then environment
+        api_key = st.secrets.get('GOOGLE_API_KEY') or os.environ.get('GOOGLE_API_KEY')
         if not api_key:
-            st.error("❌ GOOGLE_API_KEY not found")
+            st.error("❌ GOOGLE_API_KEY not found. Please add it to Streamlit secrets or environment variables.")
             return False
         
         genai.configure(api_key=api_key)
