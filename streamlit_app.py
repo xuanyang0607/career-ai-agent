@@ -114,13 +114,13 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 60px;
-        padding: 0 24px;
+        height: 65px;
+        padding: 0 28px;
         background-color: white;
         border-radius: 8px;
         border: 2px solid transparent;
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 18px;
+        font-weight: 700;
         color: #495057;
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -360,6 +360,13 @@ def generate_career_surprise_insights(user_responses, resume_data):
         
         responses_text = "\n\n".join(formatted_responses)
         
+        # Extract key resume details for accurate analysis
+        years_exp = resume_data.get('years_experience', 0)
+        skills = resume_data.get('skills', [])
+        job_titles = resume_data.get('job_titles', [])
+        education = resume_data.get('education_level', 'Unknown')
+        industries = resume_data.get('industries', [])
+        
         prompt = f"""
         As a career AI expert, analyze this person's responses and resume to provide surprising, insightful career revelations.
         
@@ -367,10 +374,13 @@ def generate_career_surprise_insights(user_responses, resume_data):
         {responses_text}
         
         RESUME DATA:
-        Skills: {resume_data.get('skills', [])}
-        Experience: {resume_data.get('years_experience', 0)} years
-        Education: {resume_data.get('education_level', 'Unknown')}
-        Industries: {resume_data.get('industries', [])}
+        Skills: {skills}
+        Professional Experience: {years_exp} years (EXACTLY - do not calculate differently)
+        Job Titles: {job_titles}
+        Education: {education}
+        Industries: {industries}
+        
+        CRITICAL: Use the EXACT years of professional experience provided: {years_exp} years. This is calculated from work experience only, excluding education years. Do NOT recalculate or estimate differently.
         
         IMPORTANT: You must respond with ONLY valid JSON. No additional text, explanations, or formatting outside the JSON structure.
         
@@ -405,9 +415,9 @@ def generate_career_surprise_insights(user_responses, resume_data):
                 }}
             ],
             "value_proposition": {{
-                "unique_value": "What makes them uniquely valuable",
-                "employer_perception": "How employers likely see them",
-                "salary_potential": "Their earning potential"
+                "unique_value": "What makes them uniquely valuable with {years_exp} years of professional experience",
+                "employer_perception": "How employers likely see them based on their {years_exp} years of experience",
+                "salary_potential": "Their earning potential considering {years_exp} years of professional experience"
             }},
             "next_surprises": "What other surprising insights await them"
         }}
@@ -702,6 +712,7 @@ def extract_resume_data(text):
     # If no explicit years found, try to calculate from job dates
     if years_experience == 0:
         # Look for date patterns like "03/2023 - Present", "2020-2023", "Jan 2020 - Dec 2023", etc.
+        # But ONLY in professional experience sections, not education
         date_patterns = [
             r'(\d{1,2}/\d{4})\s*[-–—]\s*(\d{1,2}/\d{4})',  # 03/2023 - 02/2023
             r'(\d{1,2}/\d{4})\s*[-–—]\s*(present|current|now|ongoing)',  # 03/2023 - present
@@ -714,8 +725,13 @@ def extract_resume_data(text):
         all_start_years = []
         all_end_years = []
         
+        # Split text into sections and only look in professional experience sections
+        text_sections = re.split(r'\n\s*(?:EDUCATION|education|Education)\s*\n', text)
+        professional_text = text_sections[0]  # Everything before education section
+        professional_text_lower = professional_text.lower()
+        
         for pattern in date_patterns:
-            matches = re.findall(pattern, text_lower)
+            matches = re.findall(pattern, professional_text_lower)
             for match in matches:
                 if len(match) == 2:
                     start_part, end_part = match
@@ -752,7 +768,7 @@ def extract_resume_data(text):
                         all_start_years.append(start_year)
                         all_end_years.append(end_year)
         
-        # Also look for single years (start dates without end dates)
+        # Also look for single years (start dates without end dates) - only in professional sections
         single_year_patterns = [
             r'(\d{4})\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)',  # 2020 Jan
             r'(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(\d{4})',  # Jan 2020
@@ -761,7 +777,7 @@ def extract_resume_data(text):
         ]
         
         for pattern in single_year_patterns:
-            matches = re.findall(pattern, text_lower)
+            matches = re.findall(pattern, professional_text_lower)
             for match in matches:
                 try:
                     year = int(match)
@@ -1115,7 +1131,7 @@ def main():
         else:
             display_warning_message("Google AI Not Configured")
             if st.button("🔑 Initialize Google AI", type="primary"):
-                init_google_ai()
+            init_google_ai()
         
         st.markdown("---")
         
@@ -1252,7 +1268,7 @@ def main():
                     if resume_data.get('job_titles'):
                         for title in resume_data.get('job_titles', []):
                             st.write(f"• {title}")
-                    else:
+            else:
                         st.write("No specific job titles detected")
                     
                     if resume_data.get('years_experience', 0) > 0:
@@ -1554,7 +1570,7 @@ def main():
                     
                     if 'error' in analysis:
                         st.error(analysis['error'])
-                    else:
+                else:
                         st.session_state.career_analysis = analysis
                         st.success("✅ Career analysis complete!")
             
@@ -1606,7 +1622,7 @@ def main():
                         st.write("**Transition Roles:**")
                         for role in analysis['role_recommendations'].get('transition_roles', []):
                             st.write(f"• {role}")
-        else:
+            else:
             st.info("👆 Please complete the Resume Analysis first to get career insights")
     
     # Tab 3: Job Recommendations
@@ -1623,7 +1639,7 @@ def main():
                     
                     if 'error' in jobs:
                         st.error(jobs['error'])
-                    else:
+            else:
                         st.session_state.job_recommendations = jobs
                         st.success("✅ Job recommendations ready!")
             
