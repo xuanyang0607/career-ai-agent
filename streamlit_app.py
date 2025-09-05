@@ -1570,7 +1570,7 @@ def main():
                     
                     if 'error' in analysis:
                         st.error(analysis['error'])
-                else:
+                    else:
                         st.session_state.career_analysis = analysis
                         st.success("✅ Career analysis complete!")
             
