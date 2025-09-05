@@ -655,28 +655,73 @@ def extract_resume_data(text):
             r'(\d{4})\s*[-–]\s*present',  # 2020-present
             r'(\d{4})\s*[-–]\s*current',  # 2020-current
             r'(\d{4})\s*[-–]\s*now',      # 2020-now
+            r'(\d{4})\s*[-–]\s*ongoing',  # 2020-ongoing
+            r'(\d{4})\s*to\s*present',    # 2020 to present
+            r'(\d{4})\s*to\s*current',    # 2020 to current
+            r'(\d{4})\s*to\s*now',        # 2020 to now
+            r'(\d{4})\s*to\s*ongoing',    # 2020 to ongoing
         ]
         
         current_year = datetime.now().year
-        job_years = []
+        all_start_years = []
+        all_end_years = []
         
         for pattern in date_patterns:
             matches = re.findall(pattern, text_lower)
             for match in matches:
                 if len(match) == 2:
                     start_year, end_year = match
-                    if end_year.lower() in ['present', 'current', 'now']:
+                    if end_year.lower() in ['present', 'current', 'now', 'ongoing']:
                         end_year = current_year
                     try:
                         start_year = int(start_year)
                         end_year = int(end_year)
-                        if start_year <= end_year <= current_year:
-                            job_years.append(end_year - start_year)
+                        if start_year <= end_year <= current_year and start_year >= 1950:  # Reasonable year range
+                            all_start_years.append(start_year)
+                            all_end_years.append(end_year)
                     except ValueError:
                         continue
         
-        if job_years:
-            years_experience = max(job_years)  # Take the longest job duration
+        # Also look for single years (start dates without end dates)
+        single_year_patterns = [
+            r'(\d{4})\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)',  # 2020 Jan
+            r'(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(\d{4})',  # Jan 2020
+            r'(\d{4})\s*(?:january|february|march|april|may|june|july|august|september|october|november|december)',  # 2020 January
+            r'(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})',  # January 2020
+        ]
+        
+        for pattern in single_year_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                try:
+                    year = int(match)
+                    if 1950 <= year <= current_year:
+                        all_start_years.append(year)
+                        # Assume it's ongoing if no end date
+                        all_end_years.append(current_year)
+                except ValueError:
+                    continue
+        
+        # Calculate total career span
+        if all_start_years and all_end_years:
+            earliest_start = min(all_start_years)
+            latest_end = max(all_end_years)
+            years_experience = latest_end - earliest_start
+            
+            # If the span seems too long (more than 50 years), try a different approach
+            if years_experience > 50:
+                # Look for the most recent job and calculate from there
+                recent_jobs = []
+                for i, start_year in enumerate(all_start_years):
+                    if i < len(all_end_years):
+                        recent_jobs.append((start_year, all_end_years[i]))
+                
+                if recent_jobs:
+                    # Sort by start year and take the most recent
+                    recent_jobs.sort(key=lambda x: x[0], reverse=True)
+                    most_recent_start = recent_jobs[0][0]
+                    most_recent_end = recent_jobs[0][1]
+                    years_experience = most_recent_end - most_recent_start
     
     # Extract education level
     education_level = "Unknown"
@@ -1047,9 +1092,8 @@ def main():
                 st.metric("Experience", f"{resume_data.get('years_experience', 0)} years")
     
     # Main content with enhanced tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "🤖 Career Discovery Chat", 
-        "📄 Resume Analysis", 
         "🎯 Career Insights", 
         "💼 Job Recommendations", 
         "📈 Market Intelligence",
@@ -1065,17 +1109,17 @@ def main():
         st.header("🤖 Career Discovery Chat")
         st.write("Let's have a conversation to discover your true potential and surprise you with insights about your career!")
         
-        # Resume upload section for better insights
-        st.subheader("📄 Upload Your Resume (Optional but Recommended)")
-        st.write("Upload your resume for more accurate and personalized insights!")
+        # Resume upload and analysis section
+        st.subheader("📄 Upload & Analyze Your Resume")
+        st.write("Upload your resume for comprehensive analysis and personalized career insights!")
         
         col1, col2 = st.columns([2, 1])
         
         with col1:
             resume_text_chat = st.text_area(
                 "Paste your resume text here", 
-                height=200,
-                placeholder="Paste your resume text for better career insights...",
+                height=300,
+                placeholder="Paste your complete resume text including work experience, education, skills, and achievements...",
                 key="resume_chat_input"
             )
         
@@ -1083,7 +1127,7 @@ def main():
             uploaded_file_chat = st.file_uploader(
                 "Or upload a file", 
                 type=['txt', 'pdf', 'docx'],
-                help="Upload your resume file",
+                help="Upload your resume file for easier processing",
                 key="resume_chat_file"
             )
             
@@ -1092,95 +1136,256 @@ def main():
         
         # Process resume if provided
         if resume_text_chat:
-            if st.button("🔍 Analyze Resume", key="analyze_resume_chat"):
-                with st.spinner("Analyzing your resume..."):
+            if st.button("🔍 Analyze Resume", key="analyze_resume_chat", type="primary"):
+                with st.spinner("🤖 AI is analyzing your resume and generating insights..."):
                     resume_data = extract_resume_data(resume_text_chat)
                     st.session_state.resume_data = resume_data
-                    display_success_message("Resume analyzed! This will enhance your career insights.")
+                    display_success_message("Resume analysis complete! Your profile has been processed.")
                     st.rerun()  # Refresh to show updated questions
         
-        # Show resume analysis summary if available
+        # Show comprehensive resume analysis if available
         if st.session_state.get('resume_data'):
             resume_data = st.session_state.resume_data
-            st.markdown("""
-            <div class="success-card">
-                <strong>✅ Resume Analyzed!</strong><br>
-                Skills: {skills} | Experience: {exp} years | Education: {edu}
-            </div>
-            """.format(
-                skills=len(resume_data.get('skills', [])),
-                exp=resume_data.get('years_experience', 0),
-                edu=resume_data.get('education_level', 'Unknown')
-            ), unsafe_allow_html=True)
+            
+            # Enhanced metrics display
+            st.subheader("📊 Your Profile Summary")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                create_metric_card("Skills Found", len(resume_data.get('skills', [])))
+            with col2:
+                create_metric_card("Years Experience", resume_data.get('years_experience', 0))
+            with col3:
+                create_metric_card("Education Level", resume_data.get('education_level', 'Unknown'))
+            with col4:
+                create_metric_card("Industries", len(resume_data.get('industries', [])))
+            
+            # Skills visualization
+            if resume_data.get('skills'):
+                st.subheader("🎯 Skills Analysis")
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    st.markdown("**Your Skills:**")
+                    display_skill_tags(resume_data.get('skills', []))
+                
+                with col2:
+                    # Skills distribution chart
+                    skills_chart = create_skills_chart(resume_data.get('skills', []))
+                    if skills_chart:
+                        st.plotly_chart(skills_chart, use_container_width=True)
+            
+            # Detailed information in expandable sections
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                with st.expander("💼 Job Titles & Experience", expanded=True):
+                    if resume_data.get('job_titles'):
+                        for title in resume_data.get('job_titles', []):
+                            st.write(f"• {title}")
+                    else:
+                        st.write("No specific job titles detected")
+                    
+                    if resume_data.get('years_experience', 0) > 0:
+                        st.write(f"**Total Experience:** {resume_data.get('years_experience', 0)} years")
+            
+            with col2:
+                with st.expander("🏭 Industries & Education", expanded=True):
+                    if resume_data.get('industries'):
+                        st.write("**Industries:**")
+                        for industry in resume_data.get('industries', []):
+                            st.write(f"• {industry}")
+                    
+                    if resume_data.get('education_level') != 'Unknown':
+                        st.write(f"**Education:** {resume_data.get('education_level', 'Unknown')}")
+            
+            # Career preferences section
+            st.subheader("🎯 Your Career Preferences")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("**📍 Location & Compensation**")
+                location = st.text_input(
+                    "Preferred Location", 
+                    value="California", 
+                    help="Where do you want to work?",
+                    placeholder="e.g., San Francisco, Remote, New York",
+                    key="pref_location"
+                )
+                salary_min = st.number_input(
+                    "Minimum Salary ($)", 
+                    value=200000, 
+                    step=10000, 
+                    min_value=0,
+                    help="Your minimum acceptable salary",
+                    key="pref_salary"
+                )
+            
+            with col2:
+                st.markdown("**💼 Job Details**")
+                job_type = st.selectbox(
+                    "Job Type",
+                    ["Full time", "Part time", "Contract", "Intern", "Remote", "Hybrid"],
+                    help="What type of employment are you looking for?",
+                    key="pref_job_type"
+                )
+                
+                sponsorship = st.checkbox("Need Visa Sponsorship", value=False, help="Do you require visa sponsorship?", key="pref_sponsorship")
+            
+            # Company values
+            st.markdown("**🏢 Company Culture**")
+            value_options = [
+                "Work-life balance", "Transparency", "Impact", "Innovation", 
+                "Diversity", "Growth", "Stability", "Social responsibility"
+            ]
+            value_alignment = st.multiselect(
+                "What matters most to you?",
+                value_options,
+                default=["Work-life balance", "Transparency", "Impact"],
+                help="Select the values that are most important to you",
+                key="pref_values"
+            )
+            
+            company_size = st.selectbox(
+                "Preferred Company Size",
+                ["Startup (1-50)", "Small (10-500)", "Medium (500-5000)", "Large (5000+)", "Any"],
+                help="What size company do you prefer?",
+                key="pref_company_size"
+            )
+            
+            # Store preferences in session state
+            st.session_state.manual_preferences = {
+                "location": location,
+                "salary_min": salary_min,
+                "job_type": job_type,
+                "sponsorship": sponsorship,
+                "value_alignment": value_alignment,
+                "company_size": company_size
+            }
         
         st.markdown("---")
         
         # Chat interface
         if not st.session_state.user_profile_complete:
-            questions = get_career_discovery_questions()
-            current_question = questions[st.session_state.current_step]
+            # Check if Google AI is configured before starting chat
+            if not st.session_state.google_ai_configured:
+                st.markdown("""
+                <div class="warning-card">
+                    <strong>⚠️ Setup Required</strong><br>
+                    Please configure Google AI in the sidebar before starting the career discovery chat.
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.info("🔧 **Next Step:** Click 'Initialize Google AI' in the sidebar, then come back to start your career discovery journey!")
+                
+                # Show what the chat will do
+                st.subheader("🎯 What This Chat Will Do")
+                st.markdown("""
+                The Career Discovery Chat will:
+                1. **Ask you 5 personalized questions** about your career goals and challenges
+                2. **Analyze your responses** using AI to find surprising insights
+                3. **Reveal hidden talents** and strengths you didn't know you had
+                4. **Show market opportunities** tailored to your profile
+                5. **Provide actionable next steps** for your career journey
+                """)
+                
+                st.markdown("---")
+                st.subheader("🚀 Ready to Get Started?")
+                st.write("Once you've configured Google AI in the sidebar, you can begin your personalized career discovery journey!")
+            else:
+                questions = get_career_discovery_questions()
+                current_question = questions[st.session_state.current_step]
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <strong>Question {st.session_state.current_step + 1} of {len(questions)}</strong><br>
+                    {current_question['question']}
+                </div>
+                """, unsafe_allow_html=True)
             
-            st.markdown(f"""
-            <div class="info-card">
-                <strong>Question {st.session_state.current_step + 1} of {len(questions)}</strong><br>
-                {current_question['question']}
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Question response interface
-            if current_question['type'] == 'text':
-                if current_question.get('options'):
-                    response = st.radio("Your answer:", current_question['options'], key=f"q{st.session_state.current_step}")
-                else:
-                    response = st.text_area(
-                        "Your answer:", 
-                        placeholder=current_question.get('placeholder', ''),
+                # Question response interface
+                if current_question['type'] == 'text':
+                    if current_question.get('options'):
+                        response = st.radio("Your answer:", current_question['options'], key=f"q{st.session_state.current_step}")
+                    else:
+                        response = st.text_area(
+                            "Your answer:", 
+                            placeholder=current_question.get('placeholder', ''),
+                            key=f"q{st.session_state.current_step}"
+                        )
+                elif current_question['type'] == 'multiselect':
+                    response = st.multiselect(
+                        "Select all that apply:", 
+                        current_question['options'],
                         key=f"q{st.session_state.current_step}"
                     )
-            elif current_question['type'] == 'multiselect':
-                response = st.multiselect(
-                    "Select all that apply:", 
-                    current_question['options'],
-                    key=f"q{st.session_state.current_step}"
-                )
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col2:
-                if st.button("Next Question", type="primary", use_container_width=True):
-                    if response:
-                        # Store response
-                        if 'user_responses' not in st.session_state:
-                            st.session_state.user_responses = []
-                        st.session_state.user_responses.append({
-                            'question': current_question['question'],
-                            'response': response
-                        })
-                        
-                        # Move to next question
-                        if st.session_state.current_step < len(questions) - 1:
-                            st.session_state.current_step += 1
-                            st.rerun()
+                
+                col1, col2, col3 = st.columns([1, 1, 1])
+                with col2:
+                    if st.button("Next Question", type="primary", use_container_width=True):
+                        if response:
+                            # Store response
+                            if 'user_responses' not in st.session_state:
+                                st.session_state.user_responses = []
+                            st.session_state.user_responses.append({
+                                'question': current_question['question'],
+                                'response': response
+                            })
+                            
+                            # Move to next question
+                            if st.session_state.current_step < len(questions) - 1:
+                                st.session_state.current_step += 1
+                                st.rerun()
+                            else:
+                                # All questions answered, generate insights
+                                st.session_state.user_profile_complete = True
+                                st.rerun()
                         else:
-                            # All questions answered, generate insights
-                            st.session_state.user_profile_complete = True
-                            st.rerun()
-                    else:
-                        st.warning("Please provide an answer before continuing.")
-            
-            # Show progress
-            progress = (st.session_state.current_step + 1) / len(questions)
-            st.progress(progress)
-            st.caption(f"Progress: {st.session_state.current_step + 1}/{len(questions)} questions completed")
+                            st.warning("Please provide an answer before continuing.")
+                
+                # Show progress
+                progress = (st.session_state.current_step + 1) / len(questions)
+                st.progress(progress)
+                st.caption(f"Progress: {st.session_state.current_step + 1}/{len(questions)} questions completed")
         
         else:
-            # Generate and display career insights
-            if 'career_surprise_insights' not in st.session_state:
-                with st.spinner("🤖 Analyzing your responses and generating surprising insights..."):
-                    insights = generate_career_surprise_insights(
-                        st.session_state.user_responses,
-                        st.session_state.get('resume_data', {})
-                    )
-                    st.session_state.career_surprise_insights = insights
+            # Check if Google AI is configured before generating insights
+            if not st.session_state.google_ai_configured:
+                st.markdown("""
+                <div class="warning-card">
+                    <strong>⚠️ Google AI Not Configured</strong><br>
+                    Please configure Google AI in the sidebar to generate career insights.
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.info("🔧 **Setup Required:** Click 'Initialize Google AI' in the sidebar to get started!")
+                
+                # Show a preview of what insights would look like
+                st.subheader("🎯 Preview: What You'll Discover")
+                st.markdown("""
+                Once Google AI is configured, you'll get insights like:
+                - 💪 **Surprising Strengths** you didn't know you had
+                - 🎯 **Hidden Talents** that can advance your career
+                - 📊 **Market Revelations** about your field
+                - 🚀 **Career Surprises** - unexpected opportunities
+                - 💰 **Your Value Proposition** in the job market
+                """)
+                
+                if st.button("🔄 Start Over", type="secondary"):
+                    st.session_state.user_profile_complete = False
+                    st.session_state.current_step = 0
+                    st.session_state.user_responses = []
+                    st.session_state.career_surprise_insights = {}
+                    st.rerun()
+            else:
+                # Generate and display career insights
+                if 'career_surprise_insights' not in st.session_state:
+                    with st.spinner("🤖 Analyzing your responses and generating surprising insights..."):
+                        insights = generate_career_surprise_insights(
+                            st.session_state.user_responses,
+                            st.session_state.get('resume_data', {})
+                        )
+                        st.session_state.career_surprise_insights = insights
             
             insights = st.session_state.career_surprise_insights
             
@@ -1262,192 +1467,6 @@ def main():
                     st.rerun()
             else:
                 st.error(f"Error generating insights: {insights['error']}")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Tab 2: Enhanced Resume Analysis
-    with tab2:
-        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
-        
-        # Header with description
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.header("📄 Resume Analysis & Preferences")
-            st.write("Upload your resume and set your career preferences to get started with personalized insights.")
-            if st.session_state.get('resume_data'):
-                st.info("💡 **Tip:** Your resume data is automatically shared across all tabs for better insights!")
-        with col2:
-            if st.session_state.get('resume_data'):
-                display_success_message("Resume Analyzed!")
-            else:
-                display_info_message("Ready to analyze")
-        
-        # Main content area
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.subheader("📝 Upload Your Resume")
-            st.markdown("**Paste your complete resume text below:**")
-            resume_text = st.text_area(
-                "Resume Content", 
-                height=400,
-                placeholder="Paste your complete resume text including:\n• Work experience with dates and descriptions\n• Education and degrees\n• Skills and certifications\n• Achievements and projects\n• Contact information",
-                help="The more detailed your resume, the better our analysis will be!"
-            )
-            
-            # File upload option
-            uploaded_file = st.file_uploader(
-                "Or upload a file", 
-                type=['txt', 'pdf', 'docx'],
-                help="Upload your resume file for easier processing"
-            )
-            
-            if uploaded_file:
-                st.info(f"📁 File uploaded: {uploaded_file.name}")
-        
-        with col2:
-            st.subheader("🎯 Your Career Preferences")
-            
-            # Manual preferences form with better styling
-            st.markdown("**📍 Location & Compensation**")
-            location = st.text_input(
-                "Preferred Location", 
-                value="California", 
-                help="Where do you want to work?",
-                placeholder="e.g., San Francisco, Remote, New York"
-            )
-            salary_min = st.number_input(
-                "Minimum Salary ($)", 
-                value=200000, 
-                step=10000, 
-                min_value=0,
-                help="Your minimum acceptable salary"
-            )
-            
-            st.markdown("**💼 Job Details**")
-            job_type = st.selectbox(
-                "Job Type",
-                ["Full time", "Part time", "Contract", "Intern", "Remote", "Hybrid"],
-                help="What type of employment are you looking for?"
-            )
-            
-            sponsorship = st.checkbox("Need Visa Sponsorship", value=False, help="Do you require visa sponsorship?")
-            
-            st.markdown("**🏢 Company Culture**")
-            value_options = [
-                "Work-life balance", "Transparency", "Impact", "Innovation", 
-                "Diversity", "Growth", "Stability", "Social responsibility"
-            ]
-            value_alignment = st.multiselect(
-                "What matters most to you?",
-                value_options,
-                default=["Work-life balance", "Transparency", "Impact"],
-                help="Select the values that are most important to you"
-            )
-            
-            company_size = st.selectbox(
-                "Preferred Company Size",
-                ["Startup (1-50)", "Small (10-500)", "Medium (500-5000)", "Large (5000+)", "Any"],
-                help="What size company do you prefer?"
-            )
-        
-        # Analyze button with better styling
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            analyze_clicked = st.button("🔍 Analyze Resume & Generate Insights", type="primary", use_container_width=True)
-        
-        if analyze_clicked:
-            if resume_text:
-                with st.spinner("🤖 AI is analyzing your resume and generating insights..."):
-                    # Extract resume data
-                    resume_data = extract_resume_data(resume_text)
-                    
-                    # Create manual preferences dict
-                    manual_preferences = {
-                        "location": location,
-                        "salary_min": salary_min,
-                        "job_type": job_type,
-                        "sponsorship": sponsorship,
-                        "value_alignment": value_alignment,
-                        "company_size": company_size
-                    }
-                    
-                    # Store in session state for other tabs
-                    st.session_state.resume_data = resume_data
-                    st.session_state.manual_preferences = manual_preferences
-                
-                # Display success message
-                display_success_message("Resume analysis complete! Your profile has been processed.")
-                
-                # Enhanced metrics display
-                st.subheader("📊 Your Profile Summary")
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    create_metric_card("Skills Found", len(resume_data.get('skills', [])))
-                with col2:
-                    create_metric_card("Years Experience", resume_data.get('years_experience', 0))
-                with col3:
-                    create_metric_card("Education Level", resume_data.get('education_level', 'Unknown'))
-                with col4:
-                    create_metric_card("Industries", len(resume_data.get('industries', [])))
-                
-                # Skills visualization
-                if resume_data.get('skills'):
-                    st.subheader("🎯 Skills Analysis")
-                    col1, col2 = st.columns([1, 1])
-                    
-                    with col1:
-                        st.markdown("**Your Skills:**")
-                        display_skill_tags(resume_data.get('skills', []))
-                    
-                    with col2:
-                        # Skills distribution chart
-                        skills_chart = create_skills_chart(resume_data.get('skills', []))
-                        if skills_chart:
-                            st.plotly_chart(skills_chart, use_container_width=True)
-                
-                # Detailed information in expandable sections
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    with st.expander("💼 Job Titles & Experience", expanded=True):
-                        if resume_data.get('job_titles'):
-                            for title in resume_data.get('job_titles', []):
-                                st.write(f"• {title}")
-                        else:
-                            st.write("No specific job titles detected")
-                        
-                        if resume_data.get('years_experience', 0) > 0:
-                            st.write(f"**Total Experience:** {resume_data.get('years_experience', 0)} years")
-                
-                with col2:
-                    with st.expander("🏭 Industries & Education", expanded=True):
-                        if resume_data.get('industries'):
-                            st.write("**Industries:**")
-                            for industry in resume_data.get('industries', []):
-                                st.write(f"• {industry}")
-                        
-                        if resume_data.get('education_level') != 'Unknown':
-                            st.write(f"**Education:** {resume_data.get('education_level', 'Unknown')}")
-                
-                # Next steps
-                st.markdown("---")
-                st.subheader("🚀 Next Steps")
-                st.markdown("""
-                <div class="info-card">
-                    <strong>Ready for the next phase!</strong><br>
-                    Your resume has been analyzed. Now you can:
-                    <ul>
-                        <li>🎯 Get comprehensive career insights</li>
-                        <li>💼 Find personalized job recommendations</li>
-                        <li>📈 Explore market intelligence</li>
-                        <li>📚 Get training materials and projects</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
-                
-            else:
-                display_warning_message("Please paste your resume text to get started")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1770,8 +1789,8 @@ def main():
             if 'job_recommendations' not in st.session_state:
                 st.warning("⚠️ Generate Job Recommendations first")
     
-    # Tab 8: Career Tracker
-    with tab8:
+    # Tab 7: Career Tracker
+    with tab7:
         st.markdown('<div class="tab-content">', unsafe_allow_html=True)
         
         st.header("🏆 Career Progress Tracker")
